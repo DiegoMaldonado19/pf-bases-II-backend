@@ -54,8 +54,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     volumes:
-      - ./backend/src:/app/src
-      - ./backend/data:/app/data
+      - ./pf-bases-II-backend/src:/app/src
+      - ./pf-bases-II-backend/data:/app/data
     networks:
       - products-network
     depends_on:
