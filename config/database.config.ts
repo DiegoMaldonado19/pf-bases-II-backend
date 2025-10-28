@@ -6,7 +6,7 @@ class DatabaseConfig {
   private db: Db | null = null;
 
   async connect(): Promise<void> {
-    const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/products_db';
+    const uri = process.env.MONGODB_URI || 'mongodb://0.0.0.0:27017/products_db';
     
     this.client = new MongoClient(uri);
     await this.client.connect();

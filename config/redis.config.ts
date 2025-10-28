@@ -4,7 +4,7 @@ class RedisConfig {
   private client: RedisClientType | null = null;
 
   async connect(): Promise<void> {
-    const host = process.env.REDIS_HOST || 'localhost';
+    const host = process.env.REDIS_HOST || '0.0.0.0';
     const port = parseInt(process.env.REDIS_PORT || '6379');
 
     this.client = createClient({
