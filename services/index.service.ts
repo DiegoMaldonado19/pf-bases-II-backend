@@ -120,6 +120,37 @@ export class IndexService {
       };
     }
   }
+
+  async bulkInsertProducts(products: Product[]): Promise<{ insertedCount: number }> {
+    try {
+      const collection = databaseConfig.getProductsCollection();
+      let totalInserted = 0;
+
+      for (let i = 0; i < products.length; i += this.BATCH_SIZE) {
+        const batch = products.slice(i, i + this.BATCH_SIZE);
+        
+        try {
+          const result = await collection.insertMany(batch, { ordered: false });
+          totalInserted += result.insertedCount;
+        } catch (error: any) {
+          if (error.code === 11000) {
+            const duplicateCount = error.writeErrors?.filter((e: any) => e.code === 11000).length || 0;
+            totalInserted += (batch.length - duplicateCount);
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      await cacheService.invalidateCache('search:');
+      await cacheService.invalidateCache('autocomplete:');
+
+      return { insertedCount: totalInserted };
+    } catch (error) {
+      console.error('Bulk insert error:', error);
+      throw error;
+    }
+  }
 }
 
 export const indexService = new IndexService();

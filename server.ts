@@ -8,6 +8,7 @@ import { redisConfig } from './config/redis.config';
 import indexRoutes from './routes/index.routes';
 import searchRoutes from './routes/search.routes';
 import suggestRoutes from './routes/suggest.routes';
+import uploadRoutes from './routes/upload.routes';
 import { Logger } from './utils/logger.util';
 
 dotenv.config();
@@ -56,6 +57,7 @@ class Server {
     this.app.use('/api/index', indexRoutes);
     this.app.use('/api/search', searchRoutes);
     this.app.use('/api/suggest', suggestRoutes);
+    this.app.use('/api/upload', uploadRoutes);
 
     this.app.use('*', (req: Request, res: Response) => {
       res.status(404).json({
