@@ -1,13 +1,17 @@
 export interface Product {
   _id?: string;
+  id: number;
   title: string;
-  category: string;
   brand: string;
+  category: string;
   product_type: string;
+  description: string;
+  price: number;
+  currency: string;
+  stock: number;
   sku: string;
-  price?: number;
-  description?: string;
-  created_at?: Date;
+  rating: number;
+  created_at: Date;
 }
 
 export interface SearchResult {
