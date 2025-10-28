@@ -7,6 +7,7 @@ export class SearchController {
       const query = req.query.q as string;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
+      const sortBy = req.query.sortBy as 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest' | undefined;
 
       if (!query || query.trim().length === 0) {
         res.status(400).json({
@@ -33,7 +34,7 @@ export class SearchController {
       }
 
       const startTime = Date.now();
-      const result = await searchService.search(query, page, limit);
+      const result = await searchService.search(query, page, limit, sortBy);
       const duration = Date.now() - startTime;
 
       res.status(200).json({
@@ -94,6 +95,73 @@ export class SearchController {
       res.status(500).json({
         success: false,
         message: 'Autocomplete failed',
+        error: error.message
+      });
+    }
+  }
+
+  async getByCategory(req: Request, res: Response): Promise<void> {
+    try {
+      const category = req.params.category;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const result = await searchService.getProductsByCategory(category, page, limit);
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error: any) {
+      console.error('Get by category error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get products by category',
+        error: error.message
+      });
+    }
+  }
+
+  async getByBrand(req: Request, res: Response): Promise<void> {
+    try {
+      const brand = req.params.brand;
+      const page = parseInt(req.query.page as string) || 1;
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const result = await searchService.getProductsByBrand(brand, page, limit);
+
+      res.status(200).json({
+        success: true,
+        data: result
+      });
+    } catch (error: any) {
+      console.error('Get by brand error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get products by brand',
+        error: error.message
+      });
+    }
+  }
+
+  async getTopRated(req: Request, res: Response): Promise<void> {
+    try {
+      const limit = parseInt(req.query.limit as string) || 20;
+
+      const products = await searchService.getTopRatedProducts(limit);
+
+      res.status(200).json({
+        success: true,
+        data: {
+          products,
+          count: products.length
+        }
+      });
+    } catch (error: any) {
+      console.error('Get top rated error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to get top rated products',
         error: error.message
       });
     }
