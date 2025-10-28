@@ -2,8 +2,12 @@ import { Request, Response } from 'express';
 import { uploadService } from '../services/upload.service';
 import fs from 'fs';
 
+interface MulterRequest extends Request {
+  file?: Express.Multer.File;
+}
+
 export class UploadController {
-  async uploadCSV(req: Request, res: Response): Promise<void> {
+  async uploadCSV(req: MulterRequest, res: Response): Promise<void> {
     const startTime = Date.now();
     
     try {
