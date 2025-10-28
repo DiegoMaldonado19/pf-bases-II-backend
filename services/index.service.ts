@@ -91,12 +91,12 @@ export class IndexService {
 
     const totalProducts = await collection.countDocuments();
     const indexes = await collection.indexes();
-    const stats = await collection.stats();
+    const stats = await collection.estimatedDocumentCount();
 
     return {
       totalProducts,
       indexes,
-      collectionSize: stats.size
+      collectionSize: stats
     };
   }
 
