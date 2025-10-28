@@ -3,8 +3,14 @@ import { Product, SearchResult, RelevanceScore } from '../models/product.model';
 import { cacheService } from './cache.service';
 
 export class SearchService {
-  async search(query: string, page: number = 1, limit: number = 20): Promise<SearchResult> {
-    const cachedResult = await cacheService.getCachedSearch(query, page, limit);
+  async search(
+    query: string, 
+    page: number = 1, 
+    limit: number = 20,
+    sortBy?: 'relevance' | 'price_asc' | 'price_desc' | 'rating' | 'newest'
+  ): Promise<SearchResult> {
+    const cacheKey = `${query}:${page}:${limit}:${sortBy || 'relevance'}`;
+    const cachedResult = await cacheService.getCachedSearch(cacheKey, page, limit);
     
     if (cachedResult) {
       return cachedResult;
@@ -14,6 +20,10 @@ export class SearchService {
     const skip = (page - 1) * limit;
 
     const rankedResults = await this.searchWithRelevance(trimmedQuery);
+
+    if (sortBy && sortBy !== 'relevance') {
+      this.applySorting(rankedResults, sortBy);
+    }
 
     const paginatedProducts = rankedResults.slice(skip, skip + limit);
     const total = rankedResults.length;
@@ -27,7 +37,7 @@ export class SearchService {
       totalPages
     };
 
-    await cacheService.setCachedSearch(query, page, limit, result);
+    await cacheService.setCachedSearch(cacheKey, page, limit, result);
 
     return result;
   }
@@ -35,47 +45,67 @@ export class SearchService {
   private async searchWithRelevance(query: string): Promise<RelevanceScore[]> {
     const collection = databaseConfig.getProductsCollection();
     const results: RelevanceScore[] = [];
+    const seenIds = new Set<string>();
+
+    const addUniqueResults = (products: Product[], score: number, field: RelevanceScore['matchedField']) => {
+      products.forEach(product => {
+        const id = product._id?.toString() || product.sku;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          results.push({ product, score, matchedField: field });
+        }
+      });
+    };
 
     const titleMatches = await collection.find({
-      title: { $regex: query, $options: 'i' }
+      title: { $regex: this.escapeRegex(query), $options: 'i' }
     }).toArray();
-    titleMatches.forEach(product => {
-      results.push({ product, score: 5, matchedField: 'title' });
-    });
+    addUniqueResults(titleMatches, 5, 'title');
 
     const categoryMatches = await collection.find({
-      category: { $regex: query, $options: 'i' },
-      _id: { $nin: titleMatches.map(p => p._id) }
+      category: { $regex: this.escapeRegex(query), $options: 'i' }
     }).toArray();
-    categoryMatches.forEach(product => {
-      results.push({ product, score: 4, matchedField: 'category' });
-    });
+    addUniqueResults(categoryMatches, 4, 'category');
 
     const brandMatches = await collection.find({
-      brand: { $regex: query, $options: 'i' },
-      _id: { $nin: [...titleMatches, ...categoryMatches].map(p => p._id) }
+      brand: { $regex: this.escapeRegex(query), $options: 'i' }
     }).toArray();
-    brandMatches.forEach(product => {
-      results.push({ product, score: 3, matchedField: 'brand' });
-    });
+    addUniqueResults(brandMatches, 3, 'brand');
 
     const skuMatches = await collection.find({
-      sku: { $regex: query, $options: 'i' },
-      _id: { $nin: [...titleMatches, ...categoryMatches, ...brandMatches].map(p => p._id) }
+      sku: { $regex: this.escapeRegex(query), $options: 'i' }
     }).toArray();
-    skuMatches.forEach(product => {
-      results.push({ product, score: 2, matchedField: 'sku' });
-    });
+    addUniqueResults(skuMatches, 2, 'sku');
 
     const productTypeMatches = await collection.find({
-      product_type: { $regex: query, $options: 'i' },
-      _id: { $nin: [...titleMatches, ...categoryMatches, ...brandMatches, ...skuMatches].map(p => p._id) }
+      product_type: { $regex: this.escapeRegex(query), $options: 'i' }
     }).toArray();
-    productTypeMatches.forEach(product => {
-      results.push({ product, score: 1, matchedField: 'product_type' });
-    });
+    addUniqueResults(productTypeMatches, 1, 'product_type');
 
     return results.sort((a, b) => b.score - a.score);
+  }
+
+  private applySorting(results: RelevanceScore[], sortBy: string): void {
+    switch (sortBy) {
+      case 'price_asc':
+        results.sort((a, b) => a.product.price - b.product.price);
+        break;
+      case 'price_desc':
+        results.sort((a, b) => b.product.price - a.product.price);
+        break;
+      case 'rating':
+        results.sort((a, b) => b.product.rating - a.product.rating);
+        break;
+      case 'newest':
+        results.sort((a, b) => 
+          new Date(b.product.created_at).getTime() - new Date(a.product.created_at).getTime()
+        );
+        break;
+    }
+  }
+
+  private escapeRegex(string: string): string {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   async suggest(prefix: string, limit: number = 10): Promise<string[]> {
@@ -86,40 +116,84 @@ export class SearchService {
     }
 
     const collection = databaseConfig.getProductsCollection();
-    const regex = new RegExp(`^${prefix}`, 'i');
+    const regex = new RegExp(`^${this.escapeRegex(prefix)}`, 'i');
 
-    const suggestions = await collection.aggregate([
-      {
-        $match: {
-          $or: [
-            { title: regex },
-            { category: regex },
-            { brand: regex }
-          ]
-        }
-      },
-      {
-        $project: {
-          _id: 0,
-          suggestions: [
-            { $cond: [{ $regexMatch: { input: "$title", regex: prefix, options: "i" } }, "$title", null] },
-            { $cond: [{ $regexMatch: { input: "$category", regex: prefix, options: "i" } }, "$category", null] },
-            { $cond: [{ $regexMatch: { input: "$brand", regex: prefix, options: "i" } }, "$brand", null] }
-          ]
-        }
-      },
-      { $unwind: "$suggestions" },
-      { $match: { suggestions: { $ne: null } } },
-      { $group: { _id: "$suggestions" } },
-      { $limit: limit },
-      { $project: { _id: 0, suggestion: "$_id" } }
-    ]).toArray();
+    const titleSuggestions = await collection.distinct('title', { 
+      title: regex 
+    });
 
-    const result = suggestions.map(s => s.suggestion);
+    const categorySuggestions = await collection.distinct('category', { 
+      category: regex 
+    });
+
+    const brandSuggestions = await collection.distinct('brand', { 
+      brand: regex 
+    });
+
+    const allSuggestions = [
+      ...titleSuggestions.slice(0, 5),
+      ...categorySuggestions.slice(0, 3),
+      ...brandSuggestions.slice(0, 2)
+    ];
+
+    const uniqueSuggestions = Array.from(new Set(allSuggestions))
+      .filter(s => s && s.toLowerCase().startsWith(prefix.toLowerCase()))
+      .slice(0, limit);
     
-    await cacheService.setAutocompleteSuggestions(prefix, result);
+    await cacheService.setAutocompleteSuggestions(prefix, uniqueSuggestions);
 
-    return result;
+    return uniqueSuggestions;
+  }
+
+  async getProductsByCategory(category: string, page: number = 1, limit: number = 20): Promise<SearchResult> {
+    const collection = databaseConfig.getProductsCollection();
+    const skip = (page - 1) * limit;
+
+    const products = await collection.find({ category })
+      .sort({ rating: -1, price: 1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    const total = await collection.countDocuments({ category });
+
+    return {
+      products,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+  }
+
+  async getProductsByBrand(brand: string, page: number = 1, limit: number = 20): Promise<SearchResult> {
+    const collection = databaseConfig.getProductsCollection();
+    const skip = (page - 1) * limit;
+
+    const products = await collection.find({ brand })
+      .sort({ rating: -1, price: 1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    const total = await collection.countDocuments({ brand });
+
+    return {
+      products,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    };
+  }
+
+  async getTopRatedProducts(limit: number = 20): Promise<Product[]> {
+    const collection = databaseConfig.getProductsCollection();
+    
+    return collection.find({ rating: { $gte: 4.5 } })
+      .sort({ rating: -1, price: 1 })
+      .limit(limit)
+      .toArray();
   }
 }
 

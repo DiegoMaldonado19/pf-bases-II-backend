@@ -21,18 +21,61 @@ class DatabaseConfig {
   private async createIndexes(): Promise<void> {
     const collection = this.getProductsCollection();
 
-    await collection.createIndex({ title: 'text', category: 'text', brand: 'text' }, {
-      weights: {
-        title: 10,
-        category: 5,
-        brand: 3
-      },
-      name: 'text_search_index'
+    await collection.createIndex(
+      { 
+        title: 'text', 
+        category: 'text', 
+        brand: 'text',
+        product_type: 'text',
+        description: 'text'
+      }, 
+      {
+        weights: {
+          title: 10,
+          category: 8,
+          brand: 6,
+          sku: 4,
+          product_type: 2,
+          description: 1
+        },
+        name: 'full_text_search_index',
+        default_language: 'spanish'
+      }
+    );
+
+    await collection.createIndex({ sku: 1 }, { 
+      unique: true, 
+      name: 'sku_unique_index' 
     });
 
-    await collection.createIndex({ sku: 1 }, { unique: true, name: 'sku_unique_index' });
-    await collection.createIndex({ category: 1, brand: 1 }, { name: 'category_brand_index' });
-    await collection.createIndex({ product_type: 1 }, { name: 'product_type_index' });
+    await collection.createIndex({ id: 1 }, { 
+      unique: true, 
+      name: 'id_unique_index' 
+    });
+
+    await collection.createIndex({ category: 1, brand: 1 }, { 
+      name: 'category_brand_compound_index' 
+    });
+
+    await collection.createIndex({ product_type: 1 }, { 
+      name: 'product_type_index' 
+    });
+
+    await collection.createIndex({ price: 1 }, { 
+      name: 'price_index' 
+    });
+
+    await collection.createIndex({ rating: -1 }, { 
+      name: 'rating_desc_index' 
+    });
+
+    await collection.createIndex({ stock: 1 }, { 
+      name: 'stock_index' 
+    });
+
+    await collection.createIndex({ created_at: -1 }, { 
+      name: 'created_at_desc_index' 
+    });
 
     console.log('MongoDB indexes created successfully');
   }
