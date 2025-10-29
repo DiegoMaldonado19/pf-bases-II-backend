@@ -8,11 +8,17 @@ export class CsvParserUtil {
       const products: Product[] = [];
       let rowCount = 0;
       let skippedRows = 0;
+      let firstRow: any = null;
 
       fs.createReadStream(filePath)
-        .pipe(csvParser({ separator: '\t' }))
+        .pipe(csvParser({ separator: ',' }))
         .on('data', (row: any) => {
           rowCount++;
+          
+          if (rowCount === 1) {
+            firstRow = row;
+            console.log('First row sample:', JSON.stringify(row, null, 2));
+          }
           
           try {
             const product: Product = {
@@ -34,11 +40,22 @@ export class CsvParserUtil {
               products.push(product);
             } else {
               skippedRows++;
-              console.warn(`Invalid product at row ${rowCount}: SKU ${product.sku}`);
+              if (rowCount <= 5) {
+                console.warn(`Invalid product at row ${rowCount}:`, {
+                  id: product.id,
+                  title: product.title,
+                  sku: product.sku,
+                  price: product.price,
+                  stock: product.stock,
+                  rating: product.rating
+                });
+              }
             }
           } catch (error: any) {
             skippedRows++;
-            console.warn(`Error parsing row ${rowCount}: ${error.message}`);
+            if (rowCount <= 5) {
+              console.warn(`Error parsing row ${rowCount}: ${error.message}`);
+            }
           }
         })
         .on('end', () => {
