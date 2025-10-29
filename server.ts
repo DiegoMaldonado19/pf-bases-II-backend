@@ -33,8 +33,8 @@ class Server {
       origin: process.env.FRONTEND_URL || 'http://localhost:4200',
       credentials: true
     }));
-    this.app.use(express.json({ limit: '10mb' }));
-    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+    this.app.use(express.json({ limit: '1gb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '1gb' }));
 
     this.app.use((req: Request, res: Response, next: NextFunction) => {
       Logger.info(`${req.method} ${req.path}`, {
@@ -113,10 +113,14 @@ class Server {
     try {
       await this.connectDatabases();
       
-      this.app.listen(this.port, () => {
+      const server = this.app.listen(this.port, () => {
         Logger.info(`Server running on port ${this.port}`);
         Logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
       });
+      
+      server.timeout = 3600000;
+      server.keepAliveTimeout = 3600000;
+      server.headersTimeout = 3610000;
 
       this.setupGracefulShutdown();
     } catch (error) {
