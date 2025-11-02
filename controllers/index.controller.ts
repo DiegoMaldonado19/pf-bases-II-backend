@@ -11,7 +11,7 @@ export class IndexController {
 
       res.status(200).json({
         success: result.success,
-        message: 'Data loading process completed',
+        message: 'Proceso de carga de datos completado',
         data: {
           inserted: result.inserted,
           duplicates: result.duplicates,
@@ -23,7 +23,7 @@ export class IndexController {
       console.error('Load data endpoint error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to load data',
+        message: 'Error al cargar los datos',
         error: error.message
       });
     }
@@ -41,7 +41,7 @@ export class IndexController {
       console.error('Get stats endpoint error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to retrieve stats',
+        message: 'Error al obtener las estadísticas',
         error: error.message
       });
     }
@@ -53,13 +53,13 @@ export class IndexController {
 
       res.status(200).json({
         success: result.success,
-        message: `Deleted ${result.deletedCount} products`
+        message: `Se eliminaron ${result.deletedCount} productos`
       });
     } catch (error: any) {
       console.error('Clear data endpoint error:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to clear data',
+        message: 'Error al limpiar los datos',
         error: error.message
       });
     }

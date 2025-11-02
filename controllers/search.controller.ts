@@ -12,7 +12,7 @@ export class SearchController {
       if (!query || query.trim().length === 0) {
         res.status(400).json({
           success: false,
-          message: 'Query parameter "q" is required'
+          message: 'El parámetro de búsqueda "q" es requerido'
         });
         return;
       }
@@ -20,7 +20,7 @@ export class SearchController {
       if (page < 1) {
         res.status(400).json({
           success: false,
-          message: 'Page must be greater than 0'
+          message: 'La página debe ser mayor a 0'
         });
         return;
       }
@@ -28,7 +28,7 @@ export class SearchController {
       if (limit < 1 || limit > 100) {
         res.status(400).json({
           success: false,
-          message: 'Limit must be between 1 and 100'
+          message: 'El límite debe estar entre 1 y 100'
         });
         return;
       }
@@ -49,7 +49,7 @@ export class SearchController {
       console.error('Search endpoint error:', error);
       res.status(500).json({
         success: false,
-        message: 'Search failed',
+        message: 'La búsqueda falló',
         error: error.message
       });
     }
@@ -63,7 +63,7 @@ export class SearchController {
       if (!prefix || prefix.trim().length < 2) {
         res.status(400).json({
           success: false,
-          message: 'Query parameter "q" must be at least 2 characters'
+          message: 'El parámetro de búsqueda "q" debe tener al menos 2 caracteres'
         });
         return;
       }
@@ -71,7 +71,7 @@ export class SearchController {
       if (limit < 1 || limit > 50) {
         res.status(400).json({
           success: false,
-          message: 'Limit must be between 1 and 50'
+          message: 'El límite debe estar entre 1 y 50'
         });
         return;
       }
@@ -94,7 +94,7 @@ export class SearchController {
       console.error('Suggest endpoint error:', error);
       res.status(500).json({
         success: false,
-        message: 'Autocomplete failed',
+        message: 'El autocompletado falló',
         error: error.message
       });
     }

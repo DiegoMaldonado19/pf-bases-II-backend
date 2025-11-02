@@ -14,7 +14,7 @@ export class UploadController {
       if (!req.file) {
         res.status(400).json({
           success: false,
-          message: 'No file uploaded'
+          message: 'No se cargó ningún archivo'
         });
         return;
       }
@@ -30,7 +30,7 @@ export class UploadController {
       res.json({
         success: true,
         data: result,
-        message: `Successfully imported ${result.inserted} products`,
+        message: `Se importaron exitosamente ${result.inserted} productos`,
         performance: {
           duration: `${duration}ms`
         }
@@ -47,7 +47,7 @@ export class UploadController {
       console.error('Upload error:', error);
       res.status(500).json({
         success: false,
-        message: error.message || 'Error uploading file'
+        message: error.message || 'Error al cargar el archivo'
       });
     }
   }
