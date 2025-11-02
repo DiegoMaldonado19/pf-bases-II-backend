@@ -41,7 +41,7 @@ services:
 
   backend:
     build:
-      context: ./pf-bases-II-backend
+      context: .
       dockerfile: Dockerfile
     container_name: products-backend
     restart: unless-stopped
@@ -54,8 +54,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
     volumes:
-      - ./pf-bases-II-backend/src:/app/src
-      - ./pf-bases-II-backend/data:/app/data
+      - ./src:/app/src
+      - ./data:/app/data
     networks:
       - products-network
     depends_on:
@@ -66,7 +66,7 @@ services:
 
   frontend:
     build:
-      context: ./pf-bases-II-frontend
+      context: ../pf-bases-II-frontend
       dockerfile: Dockerfile
     container_name: products-frontend
     restart: unless-stopped

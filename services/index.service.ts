@@ -19,20 +19,20 @@ export class IndexService {
     let errors = 0;
 
     try {
-      console.log('Starting CSV parsing...');
+      console.log('Iniciando análisis de CSV...');
       const products = await csvParserUtil.parseCSV(filePath);
-      console.log(`Parsed ${products.length} products from CSV`);
+      console.log(`Se analizaron ${products.length} productos del CSV`);
 
       const collection = databaseConfig.getProductsCollection();
 
-      console.log('Checking for existing data...');
+      console.log('Verificando datos existentes...');
       const existingCount = await collection.countDocuments();
       
       if (existingCount > 0) {
-        console.log(`Found ${existingCount} existing products. Skipping duplicates...`);
+        console.log(`Se encontraron ${existingCount} productos existentes. Saltando duplicados...`);
       }
 
-      console.log('Starting bulk insert...');
+      console.log('Iniciando inserción masiva...');
       for (let i = 0; i < products.length; i += this.BATCH_SIZE) {
         const batch = products.slice(i, i + this.BATCH_SIZE);
         
@@ -58,7 +58,7 @@ export class IndexService {
       await cacheService.invalidateCache('autocomplete:');
 
       const duration = (Date.now() - startTime) / 1000;
-      console.log(`Data loading completed in ${duration.toFixed(2)}s`);
+      console.log(`Carga de datos completada en ${duration.toFixed(2)}s`);
 
       return {
         success: true,
@@ -69,7 +69,7 @@ export class IndexService {
       };
 
     } catch (error: any) {
-      console.error('Load data error:', error);
+      console.error('Error al cargar los datos:', error);
       const duration = (Date.now() - startTime) / 1000;
       
       return {
@@ -113,7 +113,7 @@ export class IndexService {
         deletedCount: result.deletedCount
       };
     } catch (error) {
-      console.error('Clear data error:', error);
+      console.error('Error al limpiar los datos:', error);
       return {
         success: false,
         deletedCount: 0
@@ -125,29 +125,41 @@ export class IndexService {
     try {
       const collection = databaseConfig.getProductsCollection();
       let totalInserted = 0;
+      const totalBatches = Math.ceil(products.length / this.BATCH_SIZE);
+
+      console.log(`Iniciando inserción masiva: ${products.length} productos en ${totalBatches} lotes`);
 
       for (let i = 0; i < products.length; i += this.BATCH_SIZE) {
         const batch = products.slice(i, i + this.BATCH_SIZE);
+        const batchNumber = Math.floor(i / this.BATCH_SIZE) + 1;
         
         try {
           const result = await collection.insertMany(batch, { ordered: false });
           totalInserted += result.insertedCount;
+          
+          if (batchNumber % 100 === 0 || batchNumber === totalBatches) {
+            console.log(`Progreso: ${batchNumber}/${totalBatches} lotes (${totalInserted} productos insertados)`);
+          }
         } catch (error: any) {
           if (error.code === 11000) {
             const duplicateCount = error.writeErrors?.filter((e: any) => e.code === 11000).length || 0;
             totalInserted += (batch.length - duplicateCount);
+            console.log(`Lote ${batchNumber}: ${duplicateCount} duplicados encontrados`);
           } else {
+            console.error(`Lote ${batchNumber} error:`, error);
             throw error;
           }
         }
       }
+
+      console.log(`Inserción masiva completada: ${totalInserted} productos insertados con éxito`);
 
       await cacheService.invalidateCache('search:');
       await cacheService.invalidateCache('autocomplete:');
 
       return { insertedCount: totalInserted };
     } catch (error) {
-      console.error('Bulk insert error:', error);
+      console.error('Error en la inserción masiva:', error);
       throw error;
     }
   }

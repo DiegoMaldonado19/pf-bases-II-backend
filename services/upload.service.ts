@@ -11,7 +11,7 @@ export class UploadService {
       const products = await csvParserUtil.parseCSV(filePath);
       
       if (products.length === 0) {
-        throw new Error('No valid products found in CSV file');
+        throw new Error('Productos no válidos encontrados en el archivo CSV');
       }
       
       const result = await indexService.bulkInsertProducts(products);
@@ -22,8 +22,8 @@ export class UploadService {
         total: products.length
       };
     } catch (error: any) {
-      console.error('Error processing CSV:', error);
-      throw new Error(`Failed to process CSV: ${error.message}`);
+      console.error('Error al procesar CSV:', error);
+      throw new Error(`Error al procesar CSV: ${error.message}`);
     }
   }
 }
