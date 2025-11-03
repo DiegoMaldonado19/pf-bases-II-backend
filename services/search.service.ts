@@ -44,45 +44,96 @@ export class SearchService {
 
   private async searchWithRelevance(query: string): Promise<RelevanceScore[]> {
     const collection = databaseConfig.getProductsCollection();
-    const results: RelevanceScore[] = [];
-    const seenIds = new Set<string>();
-
-    const addUniqueResults = (products: Product[], score: number, field: RelevanceScore['matchedField']) => {
-      products.forEach(product => {
-        const id = product._id?.toString() || product.sku;
-        if (!seenIds.has(id)) {
-          seenIds.add(id);
-          results.push({ product, score, matchedField: field });
+    
+    const pipeline = [
+      {
+        $match: {
+          $or: [
+            { title: { $regex: this.escapeRegex(query), $options: 'i' } },
+            { category: { $regex: this.escapeRegex(query), $options: 'i' } },
+            { brand: { $regex: this.escapeRegex(query), $options: 'i' } },
+            { sku: { $regex: this.escapeRegex(query), $options: 'i' } },
+            { product_type: { $regex: this.escapeRegex(query), $options: 'i' } }
+          ]
         }
-      });
-    };
+      },
+      {
+        $addFields: {
+          relevanceScore: {
+            $sum: [
+              // Título: 5 puntos
+              { $cond: [
+                { $regexMatch: { input: "$title", regex: this.escapeRegex(query), options: "i" } },
+                5,
+                0
+              ]},
+              // Categoría: 4 puntos
+              { $cond: [
+                { $regexMatch: { input: "$category", regex: this.escapeRegex(query), options: "i" } },
+                4,
+                0
+              ]},
+              // Marca: 3 puntos
+              { $cond: [
+                { $regexMatch: { input: "$brand", regex: this.escapeRegex(query), options: "i" } },
+                3,
+                0
+              ]},
+              // SKU: 2 puntos
+              { $cond: [
+                { $regexMatch: { input: "$sku", regex: this.escapeRegex(query), options: "i" } },
+                2,
+                0
+              ]},
+              // Tipo de producto: 1 punto
+              { $cond: [
+                { $regexMatch: { input: "$product_type", regex: this.escapeRegex(query), options: "i" } },
+                1,
+                0
+              ]}
+            ]
+          },
+          matchedField: {
+            $switch: {
+              branches: [
+                { 
+                  case: { $regexMatch: { input: "$title", regex: this.escapeRegex(query), options: "i" } },
+                  then: "title"
+                },
+                { 
+                  case: { $regexMatch: { input: "$category", regex: this.escapeRegex(query), options: "i" } },
+                  then: "category"
+                },
+                { 
+                  case: { $regexMatch: { input: "$brand", regex: this.escapeRegex(query), options: "i" } },
+                  then: "brand"
+                },
+                { 
+                  case: { $regexMatch: { input: "$sku", regex: this.escapeRegex(query), options: "i" } },
+                  then: "sku"
+                },
+                { 
+                  case: { $regexMatch: { input: "$product_type", regex: this.escapeRegex(query), options: "i" } },
+                  then: "product_type"
+                }
+              ],
+              default: "title"
+            }
+          }
+        }
+      },
+      {
+        $sort: { relevanceScore: -1, rating: -1 }
+      }
+    ];
 
-    const titleMatches = await collection.find({
-      title: { $regex: this.escapeRegex(query), $options: 'i' }
-    }).toArray();
-    addUniqueResults(titleMatches, 5, 'title');
+    const products = await collection.aggregate(pipeline).toArray() as any[];
 
-    const categoryMatches = await collection.find({
-      category: { $regex: this.escapeRegex(query), $options: 'i' }
-    }).toArray();
-    addUniqueResults(categoryMatches, 4, 'category');
-
-    const brandMatches = await collection.find({
-      brand: { $regex: this.escapeRegex(query), $options: 'i' }
-    }).toArray();
-    addUniqueResults(brandMatches, 3, 'brand');
-
-    const skuMatches = await collection.find({
-      sku: { $regex: this.escapeRegex(query), $options: 'i' }
-    }).toArray();
-    addUniqueResults(skuMatches, 2, 'sku');
-
-    const productTypeMatches = await collection.find({
-      product_type: { $regex: this.escapeRegex(query), $options: 'i' }
-    }).toArray();
-    addUniqueResults(productTypeMatches, 1, 'product_type');
-
-    return results.sort((a, b) => b.score - a.score);
+    return products.map(p => ({
+      product: p as Product,
+      score: p.relevanceScore || 0,
+      matchedField: p.matchedField || 'title'
+    }));
   }
 
   private applySorting(results: RelevanceScore[], sortBy: string): void {
